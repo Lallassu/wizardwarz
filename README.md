@@ -3,9 +3,8 @@ Play the game here: http://wizardwarz.webgl.nu (or here: http://wizardwarz.nerga
 
 ## Description
 WizardWarz is a ThreeJS WebGL/Javascript multiplayer shoot-em-up game. It has unique generated maps with a NodeJS backend where maps are generated and it also supports multiplayer.
-**The code is free to use but I would appreciate if you give me credit when using it.**
 
-*This is a project that I've abandoned and just like to share with others as an example*
+**This is a project that I've abandoned and just like to share with others as an example**
 
 The game implements the following (and more):
 - Generation of smooth landscape "Islands"
