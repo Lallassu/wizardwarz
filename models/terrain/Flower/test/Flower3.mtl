@@ -1,0 +1,12 @@
+# Blender MTL File: 'None'
+# Material Count: 1
+
+newmtl RefRep.226_Flower_Texture.png
+Ns 92.156863
+Ka 0.000000 0.000000 0.000000
+Kd 0.498179 0.498179 0.498179
+Ks 0.046961 0.039989 0.042142
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd FlowerTexture3.png

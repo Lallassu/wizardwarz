@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+<!--    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">-->
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <link rel="stylesheet" href="css/pure-min.css">
+    <title>Wizard Warz</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script src="js/menu.js"></script>
+
+    <script src="js/libs/three.min.js"></script>
+    <script src="js/libs/Stats.js"></script>
+    <script src="js/libs/MTLLoader.js"></script>
+    <script src="js/libs/MD2Character.js"></script>
+    <script src="js/libs/OBJMTLLoader.js"></script>
+    <script src="js/libs/SubdivisionModifier.js"></script>
+    <script src="js/libs/THREEx.KeyboardState.js"></script>
+    <script src="js/libs/THREEx.FullScreen.js"></script>
+    <script src="js/libs/THREEx.WindowResize.js"></script>
+    <script src="js/libs/jquery-1.9.1.js"></script>
+    <script src="fonts/super_mario_256_regular.typeface.js"></script>
+    <script src="fonts/helvetiker_bold.typeface.js"></script>
+    <script src="fonts/helvetiker_regular.typeface.js"></script>
+    <script src="fonts/super_mario_bros._regular.typeface.js"></script>
+
+
+   
+    <script id="sunVertexShader" type="x-shader/x-vertex">
+      varying vec3 vNormal;
+      void main() 
+      {
+      vNormal = normalize( normalMatrix * normal );
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    </script>
+    
+    <script id="sunFragmentShader" type="x-shader/x-vertex"> 
+      varying vec3 vNormal;
+      void main() 
+      {
+      float intensity = pow( 0.7 - dot( vNormal, vec3( 0.0, 0.0, 1.0 ) ), 4.0 ); 
+/*      gl_FragColor = vec4( 0.0, 0.273, 0.925, 0.008 ) * intensity; */
+      gl_FragColor = vec4(0.573 , 0.225, 0.008, 0.7 ) * intensity;
+      }
+    </script>
+
+    <script id="vertexWaterShader" type="x-shader/x-vertex">
+      varying vec2 vUv;
+      void main() 
+      { 
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    </script>
+    <script id="vertexShader" type="x-shader/x-vertex">
+      uniform vec3 viewVector;
+      uniform float c;
+      uniform float p;
+      varying float intensity;
+      void main() 
+      {
+      vec3 vNormal = normalize( normalMatrix * normal );
+      vec3 vNormel = normalize( normalMatrix * viewVector );
+      
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); 
+      intensity = pow( c - dot(vNormal, vNormel), p );
+      }
+    </script>
+    <script id="waterShader" type="x-shader/x-vertex"> 
+      uniform sampler2D baseTexture;
+      uniform float baseSpeed;
+      uniform sampler2D noiseTexture;
+      uniform float noiseScale;
+      uniform float alpha;
+      uniform float time;
+      
+      varying vec2 vUv;
+      void main() 
+      {
+      vec2 uvTimeShift = vUv + vec2( -0.7, 1.5 ) * time * baseSpeed;	
+      vec4 noiseGeneratorTimeShift = texture2D( noiseTexture, uvTimeShift );
+      vec2 uvNoiseTimeShift = vUv + noiseScale * vec2( noiseGeneratorTimeShift.r, noiseGeneratorTimeShift.b );
+      vec4 baseColor = texture2D( baseTexture, uvNoiseTimeShift );
+      
+      baseColor.a = alpha;
+      gl_FragColor = baseColor;
+      }  
+</script>
+<script id="terrainVertexShader" type="x-shader/x-vertex">
+uniform sampler2D bumpTexture;
+uniform float bumpScale;
+
+varying float vAmount;
+varying vec2 vUV;
+
+void main() 
+{ 
+	vUV = uv;
+	vec4 bumpData = texture2D( bumpTexture, uv );
+	
+	vAmount = bumpData.r; // assuming map is grayscale it doesn't matter if you use r, g, or b.
+	
+	// move the position along the normal
+    vec3 newPosition = position + normal * bumpScale * vAmount;
+	
+	gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+}
+</script>
+<script id="terrainFragmentShader" type="x-shader/x-vertex"> 
+uniform sampler2D oceanTexture; 
+uniform sampler2D sandyTexture;
+uniform sampler2D grassTexture;
+uniform sampler2D rockyTexture;
+uniform sampler2D snowyTexture;
+
+varying vec2 vUV;
+
+varying float vAmount;
+
+void main() 
+{
+/*
+vec4 water = (smoothstep(0.0, 0.25, vAmount) - smoothstep(0.15, 0.35, vAmount)) * texture2D( oceanTexture, vUV * 10.0 ); 
+vec4 sandy = (smoothstep(0.20, 0.34, vAmount) - smoothstep(0.35, 0.50, vAmount)) * texture2D( sandyTexture, vUV * 10.0 );
+*/
+	vec4 water = (smoothstep(0.0, 0.12, vAmount) - smoothstep(0.15, 0.35, vAmount)) * texture2D( oceanTexture, vUV * 10.0 ); 
+	vec4 sandy = (smoothstep(0.15, 0.34, vAmount) - smoothstep(0.35, 0.50, vAmount)) * texture2D( sandyTexture, vUV * 10.0 );
+        vec4 grass = (smoothstep(0.30, 0.50, vAmount) - smoothstep(0.70, 0.80, vAmount)) * texture2D( grassTexture, vUV * 10.0 );
+	vec4 rocky = (smoothstep(0.31, 0.85, vAmount)) * texture2D( rockyTexture, vUV * 10.0 ); 
+	gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0) + water + sandy + grass + rocky; // + snowy, 1.0); 
+}  
+</script>
+
+    <script id="fragmentShader" type="x-shader/x-vertex"> 
+      uniform vec3 glowColor;
+      varying float intensity;
+      void main() 
+      {
+      vec3 glow = glowColor * intensity;
+      gl_FragColor = vec4( glow, 1.0);
+      }
+    </script>
+    <style>
+      @font-face
+      {
+      font-family: wizard;
+      src: url(fonts/wizard.ttf);
+      }
+      @font-face
+      {
+      font-family: wizard_two;
+      src: url(fonts/wizard2.ttf);
+      }
+
+      @font-face
+      {
+      font-family: mario;
+      src: url(fonts/mario.ttf);
+      }
+      body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family:Monospace;
+      font-size:13px;
+      text-align:center;
+      font-weight: bold;
+      
+      background-color: #000000;
+      margin: 0px;
+      overflow: hidden;
+      }
+      .mario_font {
+      font-family: mario;
+      }
+      .wizard_font {
+      font-family: wizard;
+      }
+      .wizard_font_two {
+      font-family: wizard_two;
+      }
+      #navbar {
+      background: url(textures/brick.jpg) repeat-x;
+      }
+    </style>
+
+
+  </head>
+
+  <body>
+
+    <audio id="song" autoplay="autoplay" loop="loop" valume="0.5">
+  <!--    <source src="music/war_in_the_sun.mp3" type="audio/mpeg" volume="0.1"> -->
+    </audio>
+    <audio id="waves" autoplay="autoplay" loop="loop" valume="0.0">
+      <source src="sounds/waves.mp3" type="audio/mpeg" volume="0.0">
+    </audio>
+
+<canvas style="display: none; margin-right: 0px; padding-left: 600px;  opacity: 0.5; position: absolute;" id="noise_1" width="300" height="300"></canvas> 
+<!--
+<canvas style="margin-right: 0px; padding-left: 600px;  opacity: 0.5; position: absolute;" id="noise_2" width="300" height="300"></canvas>
+-->
+
+<div style="position: absolute; margin-bottom: 0px;" id="stats"></div>
+
+<div id="time" style="" class="meter orange nostripes wizard_font">
+  <p id="time_left_text">Loading map...</p>
+  <span id="time_left_load" style="width: 100%"></span>
+</div>
+
+<!--<div style="" class="circle-text wizard_font"><div>Power Potions</div></div> -->
+
+<div id="avatar" style="display: none;" class="avatar wizard_font">
+  <div id="avatar_img"><img src="textures/avatar.png"></img></div>  
+  <div id="avatar_name" style="color: #FF00FF"></div>
+  <div id="avatar_level"></div>
+  <div id="avatar_experience"></div>
+</div>
+<div id="weapon_reload" style="display: none;" class="meter orange nostripes wizard_font">
+  <span id="weapon_reload_power" style="width: 100%"></span>
+</div>
+<div id="weapon_load" style="display: none;" class="meter white nostripes wizard_font">
+  <p>Power <font id="weapon_load_percent"></font></p>
+  <span id="weapon_load_power" style="width: 0%"></span>
+</div>
+<div id="health_load" style="display: none;" class="meter red nostripes wizard_font">
+  <p>Health <font id="health_load_percent"></font></p>
+  <span id="health_load_power" style="width: 100%"></span>
+</div>
+
+<!-- <div id="hud" class="hud"> -->
+  <div id="item1" style="display: none;" class="inventory item wizard_font">
+    <p>[ 1 ]</p>
+    <img id="itemimg1"></img>
+  </div>
+  <div id="item2" style="display: none;" class="inventory item wizard_font">
+    <p>[ 2 ]</p>
+    <img id="itemimg2"></img>
+  </div>
+  <div id="item3" style="display: none;" class="inventory item wizard_font">
+    <p>[ 3 ]</p>
+    <img id="itemimg3"></img>
+  </div>
+  <div id="item4" style="display: none;" class="inventory item wizard_font">
+    <p>[ 4 ]</p>
+    <img id="itemimg4"></img>
+  </div>
+  <div id="item5" style="display: none;" class="inventory item wizard_font">
+    <p>[ 5 ]</p>
+    <img id="itemimg5"></img>
+  </div>
+
+  <div id="console" style="display: none;" class="console">
+    <div id="console_log" disabled></div>
+    <input type="text" id="console_msg"></input>
+  </div>
+<!-- </div> -->
+ <!-- hud -->
+ <div id="info" class="info white">
+   <p id="spectate" class="wizard_font" style="text-align: right; margin-left: 90%; position: absolute;"><a href="javascript:Spectate();">Spectate</a></p>
+   <legend id="logo" class="wizard_font">
+<!--   <img src="images/toad1.png" style="z-index: -10; position: fixed; margin-left: 400px; margin-top: -50px;"></img>-->
+     <font color="#FFF">Wizard</font> Warz
+     <p style="font-size: 12px; color: #fff; margin-top: -5px; margin-left: -230px;">Multiplayer Action</p>
+   </legend>
+   <div id="menu" class="wizard_font pure-menu pure-menu-open pure-menu-horizontal">
+     <ul>
+       <li id="m_news" class="menu_item pure-menu-selected"><a onclick="viewNews();" href="#">News</a></li>
+       <li id="m_login" class="menu_item"><a onclick="viewLogin();" href="#">Login</a></li>
+       <li id="m_create" class="menu_item"><a onclick="viewCreate();" href="#">New Player</a></li>
+       <li id="m_rankings" class="menu_item"><a onclick="viewRankings();" href="#">Rankings</a></li>
+       <li id="m_about" class="menu_item"><a onclick="viewAbout();" href="#">About</a></li>
+     </ul>
+   </div>
+<!--   <img src="images/ammo.png" style="position: fixed; margin-left: 0px; padding-left: 0px; "></img> -->
+
+<div id="main_window" style="overflow-y: scroll; max-height: 350px;" class="sub_window">
+<!-- content -->
+</div>
+ </div>
+
+
+<!-- LOGIN -->
+<div id="login" style="display: none;">
+  <form class="pure-form pure-form-aligned">
+    <fieldset>
+      <div class="pure-control-group">
+        <label class="wizard_font" for="name">Player name</label>
+        <input id="login_name" type="text" placeholder="Toad">
+      </div>
+      <div class="pure-control-group">
+        <label class="wizard_font" for="password">Password</label>
+        <input id="login_password" type="password" placeholder="Password">
+      </div>
+    </fieldset>
+  </form>
+  <button onclick="Login();" class="pure-button pure-button-primary">Login</button>
+</div>
+
+<!-- CREATE NEW PLAYER -->
+<div id="create" style="display: none;">
+  <form class="pure-form pure-form-aligned">
+    <fieldset>
+      <div class="pure-control-group">
+        <label class="wizard_font" for="name">Player name</label>
+        <input id="name" type="text" placeholder="Toad">
+      </div>
+      <div class="pure-control-group">
+        <label class="wizard_font" for="password">Password</label>
+        <input id="password" type="password" placeholder="Password">
+      </div>
+      <div class="pure-control-group">
+        <label class="wizard_font" for="email">Email Address</label>
+        <input id="email" type="email" placeholder="example@example.com">
+      </div>
+    </fieldset>
+  </form>
+  <button onclick="CreatePlayer();" class="pure-button pure-button-primary">Create New Player</button>
+</div>
+
+<!-- NEWS -->
+<div id="news" style="display: none;">
+  <p class="wizard_font">Welcome to Wizard Warz version 0.1 Beta.</p>
+  <span style="text-align: left; margin-left: 5px;">
+    <p>Create a new player or login with existing to start playing.</p>
+    <p>Press 'H' to view key-bindings when in-game. And 'G' for current score board.</p>
+    <br>
+    <button onclick="Login_test();">LOGIN TEST 1</button>
+    <button onclick="Login_test2();">LOGIN TEST 2</button>
+    <div style="position: relative;" id="info_loadbar" class="meter orange wizard_font">
+      <p>Loading (<font id="info_load_percent">0%</font>)</p>
+      <span id="info_load" style="width: 0%"></span>
+    </div>
+  </span>
+</div>
+<script>
+viewNews();
+</script>
+
+<!-- HELP -->
+<div id="msgboard" class="msgboard" style="display: none;"> 
+  <h1 id="msgboard_msg" class="wizard_font"></h1>
+</div>
+
+<!-- HELP -->
+<div id="helpboard" class="helpboard" style="display: none;"> 
+  <h2 class="wizard_font">Key Bindings</h2>
+  <div class="CSSTableGenerator" >
+    <table cellspacing='0' id="help_table">
+      <tr><td>Key Binding</td><td>Action</td></tr>
+      <tr><td><b>W</b></td><td>Walk forward</td></tr>
+      <tr><td><b>D</b></td><td>Walk backward</td></tr>
+      <tr><td><b>A</b></td><td>Turn left</td></tr>
+      <tr><td><b>D</b></td><td>Turn right</td></tr>
+      <tr><td><b>space</b></td><td>Jump</td></tr>
+      <tr><td><b>B</b></td><td>1st person view</td></tr>
+      <tr><td><b>V</b></td><td>3rd person view</td></tr>
+      <tr><td><b>G</b></td><td>Score Board</td></tr>
+      <tr><td><b>1</b></td><td>Weapon 1</td></tr>
+      <tr><td><b>2</b></td><td>Weapon 2</td></tr>
+      <tr><td><b>3</b></td><td>Weapon 3</td></tr>
+      <tr><td><b>4</b></td><td>Weapon 4</td></tr>
+      <tr><td><b>5</b></td><td>Weapon 5</td></tr>
+      <tr><td><b>Left mouse button</b></td><td>Shoot</td></tr>
+    </table>
+  </div>
+  <br><br>
+</div>
+
+<!-- SCOREBOARD -->
+<div id="scoreboard" class="scoreboard" style="display: none;"> 
+  <h2 class="wizard_font">Score Board</h2>
+  <h3 id="join" class="wizard_font"><font color="#00FF00"><a href="javascript:Login();">Join Game</a></font></h2>
+  <div class="CSSTableGenerator" >
+    <table cellspacing='0' id="map_ranking">
+      <tr>
+	<td>#</td>
+	<td>Player</td>
+	<td>Level</td>
+	<td>Kills</td>
+	<td>Deaths</td>
+	<td>Experience</td>
+	<td>Health</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- RANKINGS -->
+<div id="rankings" style="display: none;"> 
+  <h2 class="wizard_font">Global Ranking</h2>
+  <div class="CSSTableGenerator" >
+    <table cellspacing='0' id="global_ranking">
+      <tr>
+	<td>Ranking</td>
+	<td>Player</td>
+	<td>Level</td>
+	<td>Kills</td>
+	<td>Deaths</td>
+	<td>Experience</td>
+	<td>Health</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div id="about" style="display: none;"> 
+  <h2 class="wizard_font" style="margin: 2px; padding: 2px;">About Wizard Warz</h2>
+  <span style="text-align: left; margin-left: 5px;">
+    <h3>About</h3>
+    <p>Code and parts of the models/textures made by myself. First WebGL game I've made, just for fun. Multiplayer shoot'em up wizard style game!</p>
+    <p>Three.js client with node.js server. Server-side dynamic terrain generation. Always generates a unique map.</p>
+    <h3>Contact</h3> 
+    <p><a href="mailt:nergal@nergal.se">nergal@nergal.se</a> or <b>proc_</b> @ freenode (#three.js).</p>
+   <h3>Credits</h3>
+   <ul><li><b><a target="_blank" href="http://threejs.org/">three.js</a></b>- Thanks mr.doob for the great library three.js!</li>
+    <li><b><a target="_blank" href="http://stemkoski.github.io/Three.js/index.html">stemkoski</a></b> - For great tutorials and the particle engine that I've modified for Wizard Warz.</li>
+    <li><b>#three.js @ freenode</b> - Great inspirational source and great people that helps out.</li>
+    <li><b><a target="_blank" href="http://soundbible.com/free-sound-effects-1.html">soundbible</a></b> - For the sound effects</li>
+    <li><b>wopr2012 (Blendswap)</b> - Wizard model</li>
+    <li><b>jaimin9475 (Blendswap)</b> - Cloud model</li>
+    <li><b><a target="_blank" href="http://ro.me">ROME - 3 Dreams of Black</a></b> - Fishes, birds and spider models.</li>
+    </ul>
+  </span>
+</div>
+
+
+
+<!--
+
+
+   <div id="loaded" style="display: none;">
+     <p>Use W-A-S-D-space and mouse to move. Click to lock pointer.</p>
+     <p>Tip: Hold left mouse button to load higher power of the weapon.</p>
+   </div>
+
+   
+   <label class="mario_font">Enter player name:</label>
+   <input class="inputclass" type="text" id="player_name"></input>
+   <img src="images/toad1.png" style=""></img>
+   <h1 class="mario_font" id="start" style="display: none;"><a href="javascript:Start();">ENTER GAME</a></h1>
+   </div>
+-->
+
+
+ <div id="container"></div>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-51752097-1', 'nergal.se');
+  ga('send', 'pageview');
+
+</script>
+  </body>
+    <script src="js/net.js"></script>
+    <script src="js/ShaderParticles.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/text.js"></script>
+    <script src="js/loader.js"></script>
+    <script src="js/spells.js"></script>
+    <script src="js/weapons.js"></script>
+    <script src="js/ammo.js"></script>
+    <script src="js/objects.js"></script>
+    <script src="js/enemies.js"></script>
+    <script src="js/itemfactory.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/game.js"></script>
+</html>
