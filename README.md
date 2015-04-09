@@ -1,6 +1,7 @@
 # WizardWarz
 Play the game here: http://wizardwarz.nergal.se 
-(NOTE: The game is currently running on port 8082 on my server so if you are behind a firewall it might not work for you.)
+
+*NOTE: The game is currently running on port 8082 on my server so if you are behind a firewall it might not work for you*
 
 ## Description
 WizardWarz is a ThreeJS WebGL/Javascript multiplayer shoot-em-up game. It has unique generated maps with a NodeJS backend where maps are generated and it also supports multiplayer.
